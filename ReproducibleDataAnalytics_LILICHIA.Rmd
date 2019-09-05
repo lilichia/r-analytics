@@ -2,12 +2,14 @@
 title: "Best Practices for Creating Reproducible Analytics within Teams Using R"
 author: "Li Li Chia"
 date: "31 August 2019"
-output:  html_document
-params:  
-  dataSourceFile: 'data/total-air-passenger-arrivals-by-country.csv'
+output:  ioslides_presentation
+params:
+  dataSourceFile: data/total-air-passenger-arrivals-by-country.csv
 ---
 
 ```{r setup, include=FALSE}
+
+
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(ggthemes)
@@ -16,13 +18,19 @@ library(extrafont)
 library(maps)
 library(igraph)
 library(networkD3)
+# Text Mining
+library(tm) 
+# wordcloud
+library(wordcloud) 
+# colour palette
+library(RColorBrewer) 
 
 ```
 
 ## Speaker Bio: Li Li Chia
 <font size=5, align="justify">
 <p>
-**Li Li** is a VP from UOB’s Group Compliance – Analytics, Automation and AI team. Among others, the work involves analytics for regime-specific sanctions look-back on payment and trades, analysing transactions patterns and optimising efficiency of name screening systems.
+**Li Li** is a VP from UOB's Group Compliance - Analytics, Automation and AI team. Among others, the work involves analytics for regime-specific sanctions look-back on payment and trades, analysing transactions patterns and optimising efficiency of name screening systems.
 </p>
 <p>
 Prior to UOB, Li Li has led projects in the Singapore community care and healthcare space. She has also implemented turnkey solutions and business intelligence applications in light manufacturing, fast moving consumer goods and property development. She has over 10 years of experience in technology and project management.
@@ -43,36 +51,34 @@ Li Li holds a Masters of Technology in Knowledge Engineering from the National U
 5. Data Transformation 
 6. Data Visualization 
 7. User Defined Functions 
-8. R and your favorite code management repository
+8. R Studio and Version Control
 
 ## Introduction to R 
+![alternatetext="R"](images/Rlogo.png){align=left, width=25} is a programming language and free software environment for statistical computing and graphics which is similar to the S language and environment which was developed at Bell Laboratories (formerly AT&T, now Lucent Technologies) by John Chambers and colleagues. 
 
-![](images/Rlogo.png){align=left, width=25} is a programming language and free software environment for statistical computing and graphics supported by the R Foundation for Statistical Computing. The R language is widely used among statisticians and data miners for interpreting and visualizing data. 
-
-R is used by companies and organizations around the world for data analytics
+The R language is widely used among statisticians and data miners for interpreting and visualizing data. 
+Below is a list of some high profile companies using R.
 
 * Microsoft, Google, Facebook
 * BBC , New York Times
 * Grab, Uber 
 
 <font size=1>*References:* 
-<ol><li> Revolution Analytics, https://blog.revolutionanalytics.com/2013/05/companies-using-open-source-r-in-2013.html </li>
-<li>Revolution Analytics, https://blog.revolutionanalytics.com/2019/02/bbc-r-cookbook.html </li>
+<ol><li>The R Foundation for Statistical Computing, https://www.r-project.org/about.html</li>
+<li> Revolution Analytics, https://blog.revolutionanalytics.com/2013/05/companies-using-open-source-r-in-2013.html </li>
+<li>Revolution Analytics, https://bbc.github.io/rcookbook/ </li>
 <li>Tech In Asia https://www.techinasia.com/grab-runs-data-science-team   </li>
 </ol>
 </font>
 
 ## Introduction to  R Studio
 
-RStudio is an integrated development environment (IDE) for R. It includes a console, syntax-highlighting editor that supports direct code execution, as well as tools for plotting, history, debugging and workspace management. Click here to see more RStudio features.
+RStudio is an integrated development environment (IDE) for R. It includes a console, syntax-highlighting editor that supports direct code execution, as well as tools for plotting, history, debugging and workspace management. 
 
 RStudio is available in open source and commercial editions and runs on the desktop (Windows, Mac, and Linux) or in a browser connected to RStudio Server or RStudio Server Pro (Debian/Ubuntu, RedHat/CentOS, and SUSE Linux).
 
 
 ![](images/RStudio-Logo-Blue-Gray-125.png){align=left, height=30}   https://www.rstudio.com/products/rstudio/
-
-
-
 
 ## Usage of R Markdown
 This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
@@ -81,8 +87,6 @@ When you click the **Knit** button a document will be generated that includes bo
 ```{r cars}
 summary(cars)
 ```
-
-
 
 
 ## Data Import
@@ -95,20 +99,18 @@ odbc_result <- dbReadTable(odbc, "flights")
 ```
 
 * Otherwise, flat file data import from CSV also works.
-* Parameterize the source directory in the R Markdown header. 
+* Parameterize the data source in the RMarkdown header. 
 ```{r}
 params$dataSourceFile
 df_arrivals<-read.csv(params$dataSourceFile)
 ```
 <font size=2>
-Note: We will be using this data for the rest of the exercise
-<br>
-*Source:* Data.gov.sg, https://data.gov.sg/dataset/air-passenger-arrivals-total-by-region-and-selected-country-of-embarkation
+Source: Data.gov.sg, https://data.gov.sg/dataset/air-passenger-arrivals-total-by-region-and-selected-country-of-embarkation
 </font>
 
 ## Data Summarization, Transformation and Visualization 
 We use the following libraries and their dependencies for summarization, transformation, visualization
-```{r eval=FALSE}
+```{r eval=FALSE,echo=TRUE}
 # For data reshaping and summarization
 library(dplyr)
 # For graphical visualization
@@ -123,7 +125,7 @@ library(maps)
 
 ## Data Summarization
 Summarize imported data for easy reconciliation 
-```{r, echo = TRUE}
+```{r}
 dim(df_arrivals) # dim provides the number of rows and columns of data
 str(df_arrivals) # str gives the structure of the data frame 
 ```
@@ -150,10 +152,10 @@ Transforming the data structure
 * Handling of NA values
 ```{r}
 # Unsuccessfully converted values become NA, so we get the index
-nonnum.index <- (is.na(as.numeric(df_arrivals$value)))
+na.index <- (is.na(as.numeric(df_arrivals$value)))
 
 # Visual check the values of data that became NA 
-table(df_arrivals$value[nonnum.index])
+table(df_arrivals$value[na.index])
 
 ```
 
@@ -202,10 +204,12 @@ names(df_arrivals)
 ```
 
 ## Data Transformation
-### dplyr:: select
 We use **dplyr** library **select**  to select columns to analyse
 
 ```{r}
+# Alternate code in base R , same result
+#   df_arrivals[,c("month","region","country","value")]
+
 df_arrivals<-dplyr::select(df_arrivals, # the first parameter is the df
                        month, region, country, value) # folowed by  columns
 
@@ -250,24 +254,29 @@ dplyr::count(df_arrivals,month)
 
 ## Data Visualization 
 
-We use **dplyr::group_by** to group the data by country, subsequently, we use **dplyr::summarise** to sum up the value of each country (ie: grouped variable)
+We use **dplyr::group_by** to group the data by month, subsequently, we use **dplyr::summarise** to sum up the value of each month (ie: grouped variable)
 
-```{r top10, echo = TRUE}
+```{r top10month}
 # We use the %>% for easier readability, actually it is the same as 
+#      summarise(month=format(month,"%Y-%m"),value=sum(value))
 #
-#      summarise(group_by(df_arrivals,country),value=sum(value))
-#
-df_arrivals %>% group_by(country) %>% summarise(value=sum(value))
+df_arrivals %>% 
+ group_by(month=format(month,"%Y-%m")) 
 ```
+
 ## Data Visualization 
 
-Similarly we can group the data by month and sum up the values of each month.
-We then use **dplyr::arrange(desc)** to arrange the summed values in desc order
-```{r top10month, echo = TRUE}
-df_arrivals %>% 
- group_by(month=format(month,"%Y-%m")) %>%
-  summarise(value=sum(value)) %>% arrange(desc(value))
+We use **dplyr::group_by** to group the data by country, subsequently, we use **dplyr::summarise** to sum up the value of each country (ie: grouped variable). Then, we use **dplyr::arrange(desc())** to arrange the summed values in desc order. Finally, we use *head(5)* to display the Top 5 summed values 
+```{r top10}
+# We use the %>% for easier readability, actually it is the same as 
+#      summarise(group_by(df_arrivals,country),value=sum(value))
+#
+df_arrivals %>% group_by(country) %>% summarise(value=sum(value)) %>% 
+                      arrange(desc(value)) %>% head(5)
 ```
+
+
+
 ## Data Visualization 
 Use **ggtheme::theme** to set a standard theme for ggplot
 
@@ -295,74 +304,91 @@ How **ggplot2::ggplot** grammar works...
 
 - First we supply a *data* set 
 - Second, we set aesthetic mapping using *aes()*
-- Then, we add layers *stat_summary*, labels *xlab* and *ylab*
-
-We create a Line Chart using *geom="line"*
+- Then, we add layers *geom_bar(stat="identity")* for the barchart
+- And labels *xlab* and *ylab*
+- Bar charts are automatically stacked when multiple bars are placed together
 
 ```{r }
-plot2 <- ggplot(data=df_arrivals, 
-                aes(format(as.Date(month),"%Y-%m"), 
-                    value, group=country,color=country)) +
-                stat_summary(fun.y=sum,geom="line") +   
-                xlab('Year-Month') + ylab('Number of Passenger Arrivals')
+plot1 <- ggplot(data=df_arrivals) + 
+                aes(x=format(month,"%Y-%m"), y=value, fill=country) + 
+                geom_bar(stat="identity") +   
+                xlab('Year-Month') + 
+                ylab('Number of Passenger Arrivals') 
 ```
 
 ## Data Visualization 
+Finally, we add the theme_WWCPlot and display the bar plot.
 
-Finally, we add the theme_WWCPlot and display the Line Plot
 ```{r }
-plot2 + theme_WWCPlot
+plot1 + theme_WWCPlot
 ```
+
+
+## Data Visualization
+
+- Puzzled about the geom_bar(stat="identity")?
+- The default value of y is the frequency
+- When you see the next chart, it will make more sense why we change the default setting
+
+```{r }
+plot12 <- ggplot(data=df_arrivals) + 
+                aes(x=format(month,"%Y-%m"), fill=country) + 
+                geom_bar() +   
+                xlab('Year-Month') + 
+                ylab('Number of Passenger Arrivals') 
+```
+
+## Data Visualization 
+All countries/regions appear as one observation per month.
+```{r }
+plot12 + theme_WWCPlot
+```
+
 
 ## Data Visualization
 Let's repeat the **ggplot2::ggplot** grammar again...
 
 - First we supply a *data* set 
 - Second, we set aesthetic mapping using *aes()*
-- Then, we add layers *stat_summary*, labels *xlab* and *ylab*
-
-We create a barplot using *geom="bar"*
-Bar charts are automatically stacked when multiple bars are placed
+- Then, we add layers *geom_line(stat="identity")* for the line chart
+- And finally labels *xlab* and *ylab*
 ```{r }
-plot1 <- ggplot(data=df_arrivals) + 
-                aes(x=format(month,"%Y-%m"), value, fill=country) + 
-                stat_summary(fun.y=sum,geom="bar") +   
-                xlab('Year-Month') + 
-                ylab('Number of Passenger Arrivals') 
+plot2 <- ggplot(data=df_arrivals)+ 
+                aes(x=format(as.Date(month),"%Y-%m"), 
+                    y=value, group=country,color=country) +
+                stat_summary(fun.y=sum,geom="line") +   
+                xlab('Year-Month') + ylab('Number of Passenger Arrivals')
 ```
 
 ## Data Visualization 
-
-Finally, we add the theme_WWCPlot and display the bar plot
+Finally, we add the theme_WWCPlot and display the Line Plot
 ```{r }
-plot1 + theme_WWCPlot
-
+plot2 + theme_WWCPlot
 ```
 
 
 
-## Data Transformation for Map 
-We retrieve *maps::map_data* and view it to understand the structure a bit better
+## Data Visualization for Map 
+Retrieve maps::map_data and review the structure
 ```{r }
-world_map <- map_data("world")
-str(world_map)
-head(world_map)
+world_map <- map_data("world") # retrieve world map data
+str(world_map) #see the structure
+world_map # see first few rows
 ```
 
 ## Data Transformation for Map 
 We then take country statistics, normalize the country/region information and join
 ```{r}
 # We save the count we did previously to a variable
-count_ctry <- df_arrivals %>% 
-                  group_by(country) %>% summarise(value=sum(value))
-
+count_ctry <- df_arrivals %>% group_by(country) %>% summarise(value=sum(value))
 # We are familiar with the world_map data so we update UK value
 if("United Kingdom" %in% count_ctry$country)
-{index.unitedkingdom <- (count_ctry$country)=="United Kingdom" 
- count_ctry$country[index.unitedkingdom]<-"UK"}
-
+{   index.unitedkingdom <- (count_ctry$country)=="United Kingdom" 
+    count_ctry$country[index.unitedkingdom]<-"UK"}
 # join the count and world map data
 arrivals.map<-left_join(count_ctry,world_map,by=c("country"="region"))
+# see the first few rows
+head(arrivals.map)
 ```
 
 
@@ -404,6 +430,8 @@ month_max <- max(df_arrivals$month)
 month_seq <- seq(month_max,length=2, by="-12 months")
 # The second item in the sequence will be the lower bound
 month_lowerbound <- month_seq[2]
+# Let's view the final variable
+month_lowerbound
 ```
 
 
@@ -430,49 +458,50 @@ getTwelveMonthAgoDate(df_arrivals$month)
 
 ## Combining R Markdown and UDF
 
+General good practices
+
+* Readability is key
+* Ease of maintenance and reusability is another bonus
 * Store functions in central folder
-* Call the functions using **source("folderpath")** at the beginning of the RMD
+* Call all common functions using **source("folderpath")** 
 
 
-## R and your favorite code management repository
+## R Studio and Version Control
 
-* R Studio is compatible with GIT and SVN with minimal configuration
-* Keeping track of code versions within team members is important. 
-* Avoid doing version control using file naming convention.
+* R Studio is compatible with code management tools *git* and *SVN* with minimal configuration
+* It's possible to create a Project from Version Control directly from R Studio 
+* Similarly, you can *commit* or *revert* changes as well as view the *log* or *diff* 
+* AVOID doing version control using file naming convention.
 
 https://support.rstudio.com/hc/en-us/articles/200532077-Version-Control-with-Git-and-SVN
 
 
-## Bonus Visualization: Social Network Analysis
-
-
+## Bonus: Social Network Analysis
 ```{r }
 # load libraries
 library(igraph)
 library(networkD3)
 
-# A connection data frame is a list of flows with intensity for each flow
+# Create connection dataframe - list of flows with intensity for each flow
 links <- data.frame(
   source=c("group_A","group_A", "group_C", "group_C", "group_G"), 
   target=c("group_C","group_D", "group_F", "group_G", "group_A"), 
-  value=c(2,3, 2, 3, 1)
-  )
- 
-# From these flows we need to create a node data frame: it lists every entities involved in the flow
+  value=c(2,3, 2, 3, 1) )
+
+# From these flows we need to create a node data frame: 
+#                it lists every entities involved in the flow
 nodes <- data.frame(
   name=c(as.character(links$source), 
   as.character(links$target)) %>% unique()
 )
 ```
-Reference: https://www.r-graph-gallery.com/321-introduction-to-interactive-sankey-diagram-2.html
+<font size=1>Reference: https://www.r-graph-gallery.com/321-introduction-to-interactive-sankey-diagram-2.html
+</font>
 
-
-## Bonus Visualization: Social Network Analysis
-
+## Bonus: Social Network Analysis
 ```{r}
 # Turn it into igraph object
 network <- graph_from_data_frame(d=links,vertices=nodes,directed=T)
-
 #Make the plot
 plot(network)
 ```
@@ -480,8 +509,8 @@ plot(network)
 
 ## Bonus Visualization: Sankey Diagram
 ```{r}
-
-# With networkD3, connection must be provided using id, not using real name like in the links dataframe.. So we need to reformat it.
+# With networkD3, connection must be provided using id, not using real name
+# like in the links dataframe.. So we need to reformat it.
 links$IDsource <- match(links$source, nodes$name)-1 
 links$IDtarget <- match(links$target, nodes$name)-1
  
@@ -494,5 +523,51 @@ p <- sankeyNetwork(Links = links, Nodes = nodes,
 
 ## Bonus Visualization: Sankey Diagram
 ```{r}
+# Display the network
 p
 ```
+
+## Bonus Visualization: Word Cloud
+Load libraries and dependencies
+```{r, eval=FALSE}
+# Text Mining
+library(tm) 
+# wordcloud
+library(wordcloud) 
+# colour palette
+library(RColorBrewer) 
+```
+Load data
+```{r, warning=FALSE}
+filePath <- "data/ndr_2019_fulltext.txt"
+text <- readLines(filePath,warn=FALSE)
+```
+<font size=2>
+Source: Prime Minister's Office Singapore, https://www.pmo.gov.sg/Newsroom/National-Day-Rally-2019
+</font>
+
+## Bonus Visualization: Word Cloud
+Prepare the data using *library(tm)*
+```{r, warning=FALSE}
+# Load the data as a corpus
+docs <- Corpus(VectorSource(text))
+# Convert the text to lower case
+docs <- tm_map(docs, content_transformer(tolower))
+# Remove numbers
+docs <- tm_map(docs, removeNumbers)
+# Remove english common stopwords
+docs <- tm_map(docs, removeWords, stopwords("english"))
+#docs <-tm_map(docs,removeWords,c("hello"))
+# Remove punctuations
+docs <- tm_map(docs, removePunctuation)
+# Eliminate extra white spaces
+docs <- tm_map(docs, stripWhitespace)
+```
+
+## Bonus Visualization: Word Cloud
+Generate using *library(wordcloud)*
+```{r, warning=FALSE}
+wordcloud(docs, scale = c(5, 0.5),max.words = 70,random.order = FALSE,
+               use.r.layout = FALSE, colors = brewer.pal(6,"Dark2"))
+```
+
